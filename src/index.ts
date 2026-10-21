@@ -42,3 +42,20 @@ export {
 
 /** Protocol version constant */
 export const LAX_VERSION = '1.0' as const;
+
+// Jobs client
+export {
+  createJobsClient,
+  LaxJobsError,
+  LAX_REGISTRY_BASE,
+} from './jobs.js';
+export type {
+  JobsClient,
+  JobsClientOptions,
+  Job,
+  ListJobsParams,
+  ListJobsResult,
+  SubmitInput,
+  SubmitResult,
+  LaxJobsErrorCode,
+} from './jobs.js';
