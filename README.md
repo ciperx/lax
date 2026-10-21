@@ -106,6 +106,47 @@ const json = A2AExporter.serialize(a2aCard);
 
 ---
 
+## Jobs client (`src/jobs.ts`)
+
+A typed client for the LAX jobs registry: list jobs, read one job, submit work.
+Fetch only, no runtime dependency, retries with typed errors.
+
+```ts
+import { createJobsClient, LaxJobsError } from '@godman-protocols/lax';
+
+const jobs = createJobsClient(); // baseUrl defaults to https://lax.kognai.ai/registry
+
+const { jobs: open, count } = await jobs.listJobs({ track: 'godman-protocols', limit: 5 });
+const one = await jobs.getJob(open[0].id);
+
+try {
+  const sent = await jobs.submit(one.id, {
+    builder: 'ciperx',
+    contact: 'agent@example.com',
+    repo_or_patch_url: 'https://github.com/ciperx/lax',
+    payout_address: '0x27EbD1DDCB6607bE8641784A1bf654623Fc8290e',
+    agent_did: 'did:pkh:eip155:8453:0x27EbD1DDCB6607bE8641784A1bf654623Fc8290e',
+  });
+  console.log(sent.id, sent.status);
+} catch (error) {
+  if (error instanceof LaxJobsError) {
+    console.log(error.status, error.code, error.message);
+  }
+}
+```
+
+Options: `baseUrl`, `fetch`, `retries` (extra attempts, default 2), `sleep`, `timeoutMs`
+(default 15000). Reads retry on 429, 5xx and network errors; `submit` retries on 429 only.
+A `Retry-After` header is honoured up to 30 seconds, otherwise the wait is 500 ms doubled.
+400, 404 and 409 are never retried. `LaxJobsError.code` is one of `invalid_input`,
+`bad_request`, `not_found`, `conflict`, `rate_limited`, `server`, `network`,
+`invalid_response`.
+
+Tests: `npx tsx jobs.test.ts` (no network; one test per acceptance item A1 to A7).
+Set `LAX_LIVE=1` to also read the live `GET /jobs`.
+
+---
+
 ## Types Reference
 
 ### Core Types (`src/types.ts`)

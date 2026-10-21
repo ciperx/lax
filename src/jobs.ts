@@ -139,6 +139,7 @@ export function createJobsClient(options: JobsClientOptions = {}): JobsClient {
     path: string,
     body: unknown,
     retryableStatuses: number[],
+    retryNetwork: boolean,
   ): Promise<T> {
     const attempts = retries + 1;
     let lastError: LaxJobsError | undefined;
@@ -162,7 +163,7 @@ export function createJobsClient(options: JobsClientOptions = {}): JobsClient {
         if (timer !== undefined) clearTimeout(timer);
         const message = error instanceof Error ? error.message : 'network request failed';
         lastError = new LaxJobsError(message, 0, 'network');
-        if (attempt + 1 < attempts) {
+        if (retryNetwork && attempt + 1 < attempts) {
           await sleep(500 * 2 ** attempt);
           continue;
         }
@@ -219,7 +220,7 @@ export function createJobsClient(options: JobsClientOptions = {}): JobsClient {
       query.push(`offset=${params.offset}`);
     }
     const path = query.length > 0 ? `/jobs?${query.join('&')}` : '/jobs';
-    const payload = await request<{ jobs?: Job[]; count?: number }>('GET', path, undefined, [429, 500, 502, 503, 504]);
+    const payload = await request<{ jobs?: Job[]; count?: number }>('GET', path, undefined, [429, 500, 502, 503, 504], true);
     const jobs = payload.jobs ?? [];
     return { jobs, count: payload.count ?? jobs.length };
   }
@@ -228,7 +229,7 @@ export function createJobsClient(options: JobsClientOptions = {}): JobsClient {
     if (typeof id !== 'string' || id.trim().length === 0) {
       throw new LaxJobsError('job id is required', 0, 'invalid_input');
     }
-    const payload = await request<{ job?: Job }>('GET', `/jobs/${encodeURIComponent(id)}`, undefined, [429, 500, 502, 503, 504]);
+    const payload = await request<{ job?: Job }>('GET', `/jobs/${encodeURIComponent(id)}`, undefined, [429, 500, 502, 503, 504], true);
     if (!payload.job) {
       throw new LaxJobsError('registry answered without a job', 0, 'invalid_response');
     }
@@ -271,6 +272,7 @@ export function createJobsClient(options: JobsClientOptions = {}): JobsClient {
       `/jobs/${encodeURIComponent(jobId)}/submissions`,
       body,
       [429],
+      false,
     );
     if (!payload.submission) {
       throw new LaxJobsError('registry answered without a submission', 0, 'invalid_response');
